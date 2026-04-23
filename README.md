@@ -2,6 +2,8 @@
 
 Automatically disable the Proxmox "No valid subscription" warning message that appears after logging in.
 
+> **Note:** In a hurry? Go to [Quick Install](#quick-install).
+
 ## Description
 
 This project provides an automated solution to suppress the Proxmox subscription nag message that appears in the web interface on systems without a valid subscription license. It works by commenting out the `Ext.Msg.show` call in the `proxmoxlib.js` file, preventing the warning dialog from being displayed.
@@ -20,7 +22,10 @@ This project provides an automated solution to suppress the Proxmox subscription
 
 - Proxmox VE installed and running
 - Root or sudo access
-- Python3 (will be installed automatically if missing)
+- Python3
+  - will be installed automatically if missing
+- `curl` or `wget` for downloading `disable-nag.sh` (unless present in the working directory)
+  - will be installed automatically if missing
 - Systemd (standard on modern Proxmox installations)
 
 ## How It Works
@@ -32,7 +37,9 @@ This project provides an automated solution to suppress the Proxmox subscription
    - Restarts the `pveproxy` service to apply changes
 
 2. **install.sh**: The installation script that:
-   - Ensures Python3 dependency is available
+   - Ensures `curl` or `wget` is available to download `disable-nag.sh` if it is not already present locally
+   - Attempts to install `curl` or `wget` automatically if needed
+   - Ensures Python3 is installed
    - Stages the main script in a persistent location
    - Sets up systemd integration for automatic execution
    - Configures APT hooks for persistence across updates
@@ -40,7 +47,7 @@ This project provides an automated solution to suppress the Proxmox subscription
 ### Notes
 
 - A backup of the original `proxmoxlib.js` is created as `proxmoxlib.js.bak` before any modifications
-  - Note that this file may be overwritten on subsequent executions if the nag code reappears in `proxmoxlib.js`
+  - This file may be overwritten on subsequent executions if the nag code reappears in `proxmoxlib.js`
 - The `pveproxy` service is restarted to apply changes (this may briefly interrupt web interface access)
 - The nag message may reappear after Proxmox updates; the script handles this automatically via the APT hook
 - This script is safe to run multiple times; it checks if modifications have already been applied
@@ -49,6 +56,7 @@ This project provides an automated solution to suppress the Proxmox subscription
 
 The installation script will:
 
+- Ensure `curl` or `wget` is available and use it to download `disable-nag.sh` if needed
 - Verify Python3 is installed (installs if necessary)
 - Copy `disable-nag.sh` to `/root/scripts/`
 - Create a systemd service file (`disable-nag.service`)
@@ -58,32 +66,20 @@ The installation script will:
 
 ### Quick Install
 
-The install script needs `disable-nag.sh` in the same directory, so you can download that first and then execute `install.sh` streamed from GitHub.
-
 ```bash
 # Using curl:
-curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh -o disable-nag.sh && \
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)" && rm disable-nag.sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
 
 # Using wget:
-wget -qO disable-nag.sh https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh && \
-bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)" && rm disable-nag.sh
+bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
 ```
-
-This works because `install.sh` is a Bash script and looks for `disable-nag.sh` in the current directory.
 
 ### Clone & Install
 
 ```bash
-# Clone or download this repository:
 git clone https://github.com/yourusername/proxmox-nag-disabler.git
 cd proxmox-nag-disabler
-
-# As non-root user:
-sudo bash install.sh
-
-# As root user:
-sh install.sh
+./install.sh
 ```
 
 ### No Install
@@ -160,7 +156,9 @@ The uninstallation script will:
 - Remove the copied script from `/root/scripts/`
 - Optionally restore the backup of `proxmoxlib.js` (you'll be prompted)
 
-After uninstallation, the subscription nag message will reappear on your next login (unless you choose not to restore the backup).
+After uninstallation, the subscription nag message will reappear on your next login, unless you choose not to restore the backup. It may still reappear after updating Proxmox regardless.
+
+> **Note:** The uninstall script does not remove any APT packages, even if the install script installed Python3, `curl` or `wget`.
 
 ## License
 
