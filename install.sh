@@ -38,41 +38,6 @@ install_package() {
     fi
 }
 
-# Check if disable-nag.sh exists in current directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_DISABLE_NAG="$SCRIPT_DIR/disable-nag.sh"
-
-if [ ! -f "$LOCAL_DISABLE_NAG" ]; then
-    echo "disable-nag.sh not found locally. Attempting to download..."
-    
-    # Try to download with curl or wget
-    if ! download_file "$GITHUB_RAW_URL/disable-nag.sh" "$LOCAL_DISABLE_NAG" 2>/dev/null; then
-        echo "Warning: curl/wget not available. Attempting to install curl..."
-        
-        if ! install_package curl; then
-            echo "Warning: Failed to install curl. Attempting to install wget..."
-            
-            if ! install_package wget; then
-                echo "Error: Failed to install curl or wget."
-                echo "Please install curl or wget manually, then try again."
-                exit 1
-            else
-                echo "✓ Installed wget"
-            fi
-        else
-            echo "✓ Installed curl"
-        fi
-        
-        # Try download again after installing a tool
-        if ! download_file "$GITHUB_RAW_URL/disable-nag.sh" "$LOCAL_DISABLE_NAG"; then
-            echo "Error: Failed to download disable-nag.sh from GitHub"
-            exit 1
-        fi
-    fi
-    
-    echo "✓ Downloaded disable-nag.sh"
-fi
-
 # Check if python3 is installed
 if ! command -v python3 &> /dev/null; then
     echo "Python3 not found. Attempting to install..."
@@ -92,15 +57,66 @@ if ! command -v python3 &> /dev/null; then
     echo "✓ Installed Python3"
 fi
 
+# Check if disable-nag.sh exists in the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_SCRIPT="$SCRIPT_DIR/disable-nag.sh"
+
+if [ -f "$LOCAL_SCRIPT" ]; then
+    # Use the local script
+    DISABLE_NAG_SOURCE="$LOCAL_SCRIPT"
+    CLEANUP_AFTER=false
+else
+    # Create temp file and download
+    DISABLE_NAG_SOURCE=$(mktemp)
+    CLEANUP_AFTER=true
+    
+    echo "disable-nag.sh not found locally. Attempting to download..."
+    
+    # Try to download with curl or wget
+    if ! download_file "$GITHUB_RAW_URL/disable-nag.sh" "$DISABLE_NAG_SOURCE" 2>/dev/null; then
+        echo "Warning: curl/wget not available. Attempting to install curl..."
+        
+        if ! install_package curl; then
+            echo "Warning: Failed to install curl. Attempting to install wget..."
+            
+            if ! install_package wget; then
+                echo "Error: Failed to install curl or wget."
+                echo "Please install curl or wget manually, then try again."
+                rm -f "$DISABLE_NAG_SOURCE"
+                exit 1
+            else
+                echo "✓ Installed wget"
+            fi
+        else
+            echo "✓ Installed curl"
+        fi
+        
+        # Try download again after installing a tool
+        if ! download_file "$GITHUB_RAW_URL/disable-nag.sh" "$DISABLE_NAG_SOURCE"; then
+            echo "Error: Failed to download disable-nag.sh from GitHub"
+            rm -f "$DISABLE_NAG_SOURCE"
+            exit 1
+        fi
+    fi
+    
+    echo "✓ Downloaded disable-nag.sh"
+fi
+
 # Copy the script to install directory
 mkdir -p "$INSTALL_DIR"
-cp "$LOCAL_DISABLE_NAG" "$INSTALL_DIR/"
+cp "$DISABLE_NAG_SOURCE" "$INSTALL_DIR/"
 
 # Check if disable-nag.sh exists
 DISABLE_NAG_SCRIPT="$INSTALL_DIR/disable-nag.sh"
 if [ ! -f "$DISABLE_NAG_SCRIPT" ]; then
     echo "Error: Failed to copy disable-nag.sh to $INSTALL_DIR"
+    rm -f "$DISABLE_NAG_SOURCE"
     exit 1
+fi
+
+# Clean up temp file if it was downloaded
+if [ "$CLEANUP_AFTER" = true ]; then
+    rm -f "$DISABLE_NAG_SOURCE"
 fi
 
 # Make the script executable
