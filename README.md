@@ -1,12 +1,24 @@
 # Proxmox Nag Disabler
 
-Automatically disable the Proxmox "No valid subscription" warning message that appears after logging in.
+This project provides an automated solution to suppress the Proxmox subscription nag message that appears in the web interface on systems without a valid subscription license. It works by commenting out the `Ext.Msg.show` call in the `proxmoxlib.js` file, preventing the warning dialog from being displayed.
 
 > **Note:** In a hurry? Go to [Quick Install](#quick-install).
 
-## Description
+## Table of Contents
 
-This project provides an automated solution to suppress the Proxmox subscription nag message that appears in the web interface on systems without a valid subscription license. It works by commenting out the `Ext.Msg.show` call in the `proxmoxlib.js` file, preventing the warning dialog from being displayed.
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [How It Works](#how-it-works)
+  - [Notes](#notes)
+- [Installation](#installation)
+  - [Quick Install](#quick-install)
+  - [No Install](#no-install)
+- [Usage](#usage)
+  - [Manual Execution](#manual-execution)
+  - [Check Timer Status](#check-timer-status)
+- [Uninstallation](#uninstallation)
+  - [Quick Uninstall](#quick-uninstall)
+- [License](#license)
 
 ## Features
 
@@ -43,6 +55,13 @@ This project provides an automated solution to suppress the Proxmox subscription
    - Stages the main script in a persistent location
    - Sets up systemd integration for automatic execution
    - Configures APT hooks for persistence across updates
+   - Enables the systemd timer and ensures the disable action is reapplied automatically
+
+3. **uninstall.sh**: The uninstallation script that:
+   - Stops and disables the systemd service and timer
+   - Removes systemd unit files and the APT hook
+   - Deletes the staged `/root/scripts/disable-nag.sh`
+   - Optionally restores the original `proxmoxlib.js` backup
 
 ### Notes
 
@@ -54,27 +73,7 @@ This project provides an automated solution to suppress the Proxmox subscription
 
 ## Installation
 
-The installation script will:
-
-- Ensure `curl` or `wget` is available and use it to download `disable-nag.sh` if needed
-- Verify Python3 is installed (installs if necessary)
-- Copy `disable-nag.sh` to `/root/scripts/`
-- Create a systemd service file (`disable-nag.service`)
-- Create a systemd timer file (`disable-nag.timer`)
-- Install an APT hook to reapply after package updates
-- Enable and start the timer
-
-### Quick Install
-
-```bash
-# Using curl:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
-
-# Using wget:
-bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
-```
-
-### Clone & Install
+The installation script sets up the disable action persistently by staging `disable-nag.sh`, enabling a systemd timer/service, and installing an APT hook.
 
 ```bash
 git clone https://github.com/yourusername/proxmox-nag-disabler.git
@@ -82,19 +81,37 @@ cd proxmox-nag-disabler
 ./install.sh
 ```
 
-### No Install
+### Quick Install
 
-If you only want to run the disable action without installation, you can do that directly with:
+**Using curl:**
 
 ```bash
-# Using curl:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh)"
-
-# Using wget:
-bash -c "$(wget -qO- disable-nag.sh https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
 ```
 
-> **Note:** Running the disable script directly will suppress the nag message immediately, but Proxmox updates may still restore the original code and break the disable. The installer path is more resilient because it also adds periodic and APT-triggered reapplication.
+**Using wget:**
+
+```bash
+bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/install.sh)"
+```
+
+### No Install
+
+**NOT** recommended: If you only want to run the disable action without installation, simply use `disable-nag.sh` directly.
+
+> **Note:** Running the disable script directly will suppress the nag message immediately, but Proxmox updates may still restore the original code and break the disable. The installer path is more resilient.
+
+**Using curl:**
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh)"
+```
+
+**Using wget:**
+
+```bash
+bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/disable-nag.sh)"
+```
 
 ## Usage
 
@@ -128,37 +145,39 @@ journalctl -u disable-nag.service
 
 ## Uninstallation
 
-To remove the Proxmox Nag Disabler from your system:
+The uninstallation script removes the timer/service, APT hook, and staged script, and can optionally restore the original `proxmoxlib.js` backup.
+
+After uninstallation, the subscription nag message will reappear on your next login, unless you choose not to restore the backup. It may still reappear after updating Proxmox regardless.
+
+> **Note:** The uninstall script does not remove any APT packages.
+
+**As root user:**
 
 ```bash
-# As non-root user:
-sudo bash uninstall.sh
+./uninstall.sh
+```
 
-# As root user:
-bash uninstall.sh
+**As non-root user:**
+
+```bash
+sudo ./uninstall.sh
 ```
 
 ### Quick Uninstall
 
-```bash
-# Using curl:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/uninstall.sh)"
+> **Note:** As non-root user, you have to use `sudo bash -c "$(...)"` rather than `bash -c "$(...)"`
 
-# Using wget:
-bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/uninstall.sh)"
+**Using curl:**
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/uninstall.sh)"
 ```
 
-The uninstallation script will:
+**Using wget:**
 
-- Stop and disable the systemd timer and service
-- Remove systemd files (`disable-nag.service` and `disable-nag.timer`)
-- Remove the APT hook
-- Remove the copied script from `/root/scripts/`
-- Optionally restore the backup of `proxmoxlib.js` (you'll be prompted)
-
-After uninstallation, the subscription nag message will reappear on your next login, unless you choose not to restore the backup. It may still reappear after updating Proxmox regardless.
-
-> **Note:** The uninstall script does not remove any APT packages, even if the install script installed Python3, `curl` or `wget`.
+```bash
+bash -c "$(wget -qO- https://raw.githubusercontent.com/Carpenter-Softworks/Proxmox-Nag-Disabler/main/uninstall.sh)"
+```
 
 ## License
 
